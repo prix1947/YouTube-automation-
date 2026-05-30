@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>YouTube Clip Studio PRO | AI Captions + Voiceover + Advanced Edits</title>
+    <!-- Google Fonts & Tailwind CSS + Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .transition-smooth { transition: all 0.2s ease; }
+        .timeline-slider { accent-color: #ef4444; }
+        .caption-item:hover { background: #fef2f2; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+        
+        /* Timeline Scrubber */
+        .timeline-container { position: relative; height: 60px; background: #e2e8f0; border-radius: 8px; }
+        .timeline-track { height: 4px; background: #cbd5e1; position: absolute; top: 28px; width: 100%; }
+        .timeline-progress { height: 100%; background: #ef4444; border-radius: 2px; }
+        .timeline-thumb { position: absolute; width: 16px; height: 16px; background: #ef4444; border-radius: 50%; top: 22px; cursor: grab; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .timeline-thumb:active { cursor: grabbing; }
+        .timeline-label { position: absolute; font-size: 10px; color: #64748b; bottom: 8px; }
+        
+        /* Caption Preview */
+        .caption-preview { background: rgba(0,0,0,0.7); color: white; padding: 8px 12px; border-radius: 4px; text-align: center; }
+        
+        /* Color Picker */
+        .color-swatch { width: 32px; height: 32px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+        .color-swatch.active { border-color: #000; }
+        
+        /* Tab Navigation */
+        .tab-btn { padding: 8px 16px; font-size: 13px; border: none; background: #f1f5f9; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab-btn.active { background: #fff; border-bottom-color: #ef4444; }
+        
+        /* Slider Styles */
+        input[type="range"] { width: 100%; accent-color: #ef4444; }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-red-500 to-red-700 bg-clip-text text-transparent flex items-center gap-2">
+                <i class="fab fa-youtube text-red-600"></i> YouTube Clip Studio PRO
+            </h1>
+            <p class="text-slate-500 text-sm">Advanced editing: AI captions, voiceover, effects & automation</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <button id="saveProjectBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow"><i class="fas fa-save"></i> Save</button>
+            <button id="exportProjectBtn" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow"><i class="fas fa-download"></i> Export</button>
+            <button id="settingsBtn" class="bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><i class="fas fa-cog"></i> Settings</button>
+        </div>
+    </div>
+
+    <!-- Step 1: YouTube URL Input -->
+    <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-5 mb-6">
+        <label class="block text-sm font-semibold text-slate-800 mb-2"><i class="fab fa-youtube text-red-500 mr-1"></i> YouTube Video URL</label>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <input type="text" id="youtubeUrlInput" class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none" placeholder="https://www.youtube.com/watch?v=...">
+            <button id="loadVideoBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-medium shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-play"></i> Load</button>
+        </div>
+        <div id="videoInfoBox" class="mt-3 text-sm text-slate-600 hidden bg-slate-50 p-3 rounded-xl"></div>
+    </div>
+
+    <!-- Main Editor Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- LEFT: VIDEO PLAYER & CONTROLS -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Player Container -->
+            <div class="bg-black rounded-2xl overflow-hidden shadow-xl aspect-video relative" id="playerWrapper">
+                <div id="youtubePlayer" class="w-full h-full"></div>
+                <div class="absolute top-3 right-3 flex gap-2">
+                    <button id="playPauseBtn" class="bg-white/20 hover:bg-white/40 text-white p-2 rounded-lg"><i class="fas fa-play"></i></button>
+                    <button id="fullscreenBtn" class="bg-white/20 hover:bg-white/40 text-white p-2 rounded-lg"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+
+            <!-- Playback Controls & Speed -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex-1">
+                        <label class="text-xs font-medium text-slate-600 mb-2 block">Playback Speed</label>
+                        <div class="flex items-center gap-3">
+                            <button class="speed-btn px-2 py-1 rounded text-xs border" data-speed="0.5">0.5x</button>
+                            <button class="speed-btn px-2 py-1 rounded text-xs border" data-speed="1">1x</button>
+                            <button class="speed-btn px-2 py-1 rounded text-xs border bg-slate-200" data-speed="1.5">1.5x</button>
+                            <button class="speed-btn px-2 py-1 rounded text-xs border" data-speed="2">2x</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-medium text-slate-600">Volume</label>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="70" class="w-24">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Timeline Scrubber -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <label class="text-xs font-medium text-slate-600 block mb-3">Visual Timeline</label>
+                <div class="timeline-container" id="timelineContainer">
+                    <div class="timeline-track">
+                        <div class="timeline-progress" id="timelineProgress"></div>
+                    </div>
+                    <div class="timeline-thumb" id="timelineThumb"></div>
+                    <div id="timelineLabels" class="w-full"></div>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 flex justify-between">
+                    <span id="currentTimeDisplay">0:00</span>
+                    <span id="durationDisplay">0:00</span>
+                </div>
+            </div>
+
+            <!-- Clipping Controls -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800 mb-3"><i class="fas fa-cut text-amber-600"></i> Clip Segment</h3>
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex-1">
+                        <label class="text-xs font-medium text-slate-600">Start (sec)</label>
+                        <input type="number" id="clipStart" step="0.1" class="w-full border rounded-lg px-3 py-2 text-sm" value="0">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-medium text-slate-600">End (sec)</label>
+                        <input type="number" id="clipEnd" step="0.1" class="w-full border rounded-lg px-3 py-2 text-sm" value="30">
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <button id="applyClipBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium"><i class="fas fa-scissors"></i> Apply</button>
+                        <button id="resetClipBtn" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-sm"><i class="fas fa-redo"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAPTIONS EDITOR WITH STYLING -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold flex items-center gap-2 text-slate-800"><i class="fas fa-closed-captioning text-blue-600"></i> Smart Captions</h3>
+                    <div class="flex gap-2">
+                        <button id="autoGenerateCaptionsBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"><i class="fas fa-magic"></i> Auto</button>
+                        <button id="addCaptionBtn" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs"><i class="fas fa-plus"></i> Add</button>
+                    </div>
+                </div>
+
+                <!-- Caption Styling Tools -->
+                <div class="bg-slate-50 p-3 rounded-lg mb-3 border border-slate-200">
+                    <label class="text-xs font-medium text-slate-600 block mb-2">Caption Styling</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-500">Font Size</label>
+                            <select id="captionFontSize" class="w-full border rounded px-2 py-1 text-xs">
+                                <option value="12">Small (12px)</option>
+                                <option value="16" selected>Normal (16px)</option>
+                                <option value="20">Large (20px)</option>
+                                <option value="24">XL (24px)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500">Font Weight</label>
+                            <select id="captionFontWeight" class="w-full border rounded px-2 py-1 text-xs">
+                                <option value="normal">Normal</option>
+                                <option value="bold" selected>Bold</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500">Text Color</label>
+                            <input type="color" id="captionTextColor" value="#ffffff" class="w-full h-8 border rounded cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500">Background</label>
+                            <input type="color" id="captionBgColor" value="#000000" class="w-full h-8 border rounded cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Caption Preview -->
+                <div class="caption-preview mb-3" id="captionPreview">
+                    "Preview text will appear here"
+                </div>
+
+                <!-- Caption List -->
+                <div class="max-h-64 overflow-y-auto border rounded-xl p-2 bg-slate-50" id="captionListContainer">
+                    <div class="text-center text-slate-400 text-sm py-6">No captions yet. Click "Auto" to generate.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: VOICEOVER, MUSIC & EXPORTS -->
+        <div class="space-y-6">
+            <!-- Voiceover Studio -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800 mb-3"><i class="fas fa-microphone-alt text-purple-600"></i> Voiceover</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-medium text-slate-600">Type</label>
+                        <select id="voiceType" class="w-full border rounded-lg px-3 py-2 text-sm">
+                            <option value="tts">🎙️ Text-to-Speech</option>
+                            <option value="record">🎤 Microphone</option>
+                            <option value="upload">📁 Upload Audio</option>
+                        </select>
+                    </div>
+                    <div id="ttsPanel">
+                        <textarea id="ttsText" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Enter voiceover script...">This clip was created with YouTube Clip Studio</textarea>
+                        <div class="flex gap-2 mt-2">
+                            <select id="ttsVoice" class="border rounded-lg px-2 py-1 text-xs flex-1">
+                                <option value="en-US-Neural2-A">English (US) - A</option>
+                                <option value="en-US-Neural2-C">English (US) - C</option>
+                            </select>
+                            <button id="previewTTSBtn" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs"><i class="fas fa-play"></i></button>
+                        </div>
+                    </div>
+                    <div id="recordPanel" class="hidden">
+                        <button id="startRecordBtn" class="bg-red-500 hover:bg-red-600 text-white w-full py-2 rounded-lg text-sm"><i class="fas fa-circle"></i> Record</button>
+                        <button id="stopRecordBtn" class="bg-gray-500 hidden w-full mt-2 py-2 rounded-lg text-sm">Stop</button>
+                        <audio id="recordedAudio" controls class="w-full mt-2 hidden"></audio>
+                    </div>
+                    <div id="uploadPanel" class="hidden">
+                        <input type="file" id="voiceUploadInput" accept="audio/*" class="w-full border rounded-lg p-1 text-sm">
+                    </div>
+                    <button id="generateVoiceoverClip" class="bg-purple-600 hover:bg-purple-700 text-white w-full py-2 rounded-lg text-sm font-medium"><i class="fas fa-waveform"></i> Apply</button>
+                </div>
+            </div>
+
+            <!-- Background Music -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800 mb-3"><i class="fas fa-music text-green-600"></i> Background Music</h3>
+                <div class="space-y-3">
+                    <select id="bgmSelect" class="w-full border rounded-lg px-3 py-2 text-sm">
+                        <option value="">None</option>
+                        <option value="upbeat">Upbeat (Royalty-Free)</option>
+                        <option value="ambient">Ambient (Royalty-Free)</option>
+                        <option value="cinematic">Cinematic (Royalty-Free)</option>
+                    </select>
+                    <div>
+                        <label class="text-xs text-slate-600">Volume: <span id="bgmVolText">50%</span></label>
+                        <input type="range" id="bgmVolume" min="0" max="100" value="50" class="w-full">
+                    </div>
+                    <button id="previewBgmBtn" class="bg-green-100 text-green-700 w-full py-2 rounded-lg text-sm"><i class="fas fa-play"></i> Preview</button>
+                </div>
+            </div>
+
+            <!-- Video Effects -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800 mb-3"><i class="fas fa-sparkles text-yellow-600"></i> Effects</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-600">Brightness: <span id="brightnessVal">100%</span></label>
+                        <input type="range" id="brightnessSlider" min="50" max="150" value="100" class="w-full">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-600">Contrast: <span id="contrastVal">100%</span></label>
+                        <input type="range" id="contrastSlider" min="50" max="150" value="100" class="w-full">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-600">Saturation: <span id="saturationVal">100%</span></label>
+                        <input type="range" id="saturationSlider" min="0" max="200" value="100" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export & Automation -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-lg">
+                <h3 class="font-bold flex items-center gap-2 mb-2"><i class="fas fa-rocket"></i> One-Click Export</h3>
+                <div class="space-y-3">
+                    <select id="exportFormat" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                        <option value="mp4">📹 MP4 Video</option>
+                        <option value="webm">📹 WebM Video</option>
+                        <option value="gif">🎬 GIF Animation</option>
+                        <option value="vtt">📝 Captions (VTT)</option>
+                        <option value="json">📊 Project (JSON)</option>
+                    </select>
+                    <button id="exportFullPackage" class="bg-white text-slate-900 hover:bg-slate-100 w-full py-2.5 rounded-xl font-semibold text-sm"><i class="fas fa-download"></i> Export</button>
+                    <button id="copyConfigBtn" class="bg-slate-700 hover:bg-slate-600 w-full py-2 rounded-lg text-sm"><i class="fas fa-copy"></i> Copy Config</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+    // ========== GLOBALS ==========
+    let player = null;
+    let currentVideoId = null;
+    let clipStartSec = 0;
+    let clipEndSec = 30;
+    let videoDuration = 100;
+    let captionsList = [];
+    let voiceoverBlob = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingActive = false;
+    let projectData = {};
+    let currentSpeed = 1;
+
+    // ========== DOM ELEMENTS ==========
+    const urlInput = document.getElementById('youtubeUrlInput');
+    const loadBtn = document.getElementById('loadVideoBtn');
+    const videoInfoBox = document.getElementById('videoInfoBox');
+    const clipStartInput = document.getElementById('clipStart');
+    const clipEndInput = document.getElementById('clipEnd');
+    const applyClipBtn = document.getElementById('applyClipBtn');
+    const resetClipBtn = document.getElementById('resetClipBtn');
+    const timelineContainer = document.getElementById('timelineContainer');
+    const timelineThumb = document.getElementById('timelineThumb');
+    const timelineProgress = document.getElementById('timelineProgress');
+    const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+    const durationDisplay = document.getElementById('durationDisplay');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const speedBtns = document.querySelectorAll('.speed-btn');
+
+    // Caption elements
+    const autoCaptionBtn = document.getElementById('autoGenerateCaptionsBtn');
+    const addCaptionBtn = document.getElementById('addCaptionBtn');
+    const captionContainer = document.getElementById('captionListContainer');
+    const captionPreview = document.getElementById('captionPreview');
+    const captionFontSize = document.getElementById('captionFontSize');
+    const captionFontWeight = document.getElementById('captionFontWeight');
+    const captionTextColor = document.getElementById('captionTextColor');
+    const captionBgColor = document.getElementById('captionBgColor');
+
+    // Voiceover elements
+    const voiceTypeSelect = document.getElementById('voiceType');
+    const ttsPanel = document.getElementById('ttsPanel');
+    const ttsTextArea = document.getElementById('ttsText');
+    const previewTTSBtn = document.getElementById('previewTTSBtn');
+    const generateVoiceBtn = document.getElementById('generateVoiceoverClip');
+
+    // Music & Effects
+    const bgmSelect = document.getElementById('bgmSelect');
+    const bgmVolume = document.getElementById('bgmVolume');
+    const bgmVolText = document.getElementById('bgmVolText');
+    const brightnessSlider = document.getElementById('brightnessSlider');
+    const contrastSlider = document.getElementById('contrastSlider');
+    const saturationSlider = document.getElementById('saturationSlider');
+
+    // Export
+    const exportFullBtn = document.getElementById('exportFullPackage');
+    const exportFormat = document.getElementById('exportFormat');
+    const exportProjectBtn = document.getElementById('exportProjectBtn');
+    const saveProjectBtn = document.getElementById('saveProjectBtn');
+
+    // ========== UTILITIES ==========
+    function showToast(msg, isErr = false) {
+        let toast = document.getElementById('dynamicToast');
+        if(!toast){
+            toast = document.createElement('div');
+            toast.id = 'dynamicToast';
+            toast.className = 'fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-2.5 rounded-xl shadow-lg text-sm z-50 transition-all duration-300';
+            document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.background = isErr ? '#dc2626' : '#1e293b';
+        toast.classList.remove('opacity-0', 'invisible');
+        toast.classList.add('opacity-100');
+        setTimeout(() => { toast.classList.add('opacity-0'); setTimeout(() => toast.classList.add('invisible'), 300); }, 3000);
+    }
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function extractVideoId(url) {
+        const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[7].length === 11) ? match[7] : null;
+    }
+
+    // ========== VIDEO LOADING ==========
+    function loadYouTubeVideo(videoId) {
+        if (player) {
+            player.loadVideoById(videoId);
+        } else {
+            new YT.Player('youtubePlayer', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: { controls: 1, modestbranding: 1, rel: 0 },
+                events: {
+                    onReady: (event) => {
+                        player = event.target;
+                        videoDuration = player.getDuration();
+                        clipEndInput.value = Math.min(30, videoDuration);
+                        durationDisplay.innerText = formatTime(videoDuration);
+                        updateTimeline();
+                        showToast(`✓ Video loaded: ${videoId}`);
+                    },
+                    onStateChange: (e) => {
+                        if(e.data === YT.PlayerState.PLAYING) enforceClipLoop();
+                    }
+                }
+            });
+        }
+    }
+
+    function enforceClipLoop() {
+        if(!player) return;
+        const current = player.getCurrentTime();
+        if(current < clipStartSec) player.seekTo(clipStartSec);
+        if(current > clipEndSec) player.seekTo(clipStartSec);
+    }
+
+    // ========== TIMELINE SCRUBBER ==========
+    function updateTimeline() {
+        if(!player) return;
+        const current = player.getCurrentTime();
+        const progress = (current / videoDuration) * 100;
+        timelineProgress.style.width = progress + '%';
+        timelineThumb.style.left = progress + '%';
+        currentTimeDisplay.innerText = formatTime(current);
+    }
+
+    function initTimelineScrubber() {
+        let isDragging = false;
+        
+        timelineThumb.addEventListener('mousedown', () => { isDragging = true; });
+        document.addEventListener('mouseup', () => { isDragging = false; });
+        
+        timelineContainer.addEventListener('mousemove', (e) => {
+            if(!isDragging) return;
+            const rect = timelineContainer.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const newTime = percent * videoDuration;
+            if(player) player.seekTo(newTime);
+        });
+
+        timelineContainer.addEventListener('click', (e) => {
+            const rect = timelineContainer.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const newTime = percent * videoDuration;
+            if(player) player.seekTo(newTime);
+        });
+
+        // Update timeline every 100ms
+        setInterval(updateTimeline, 100);
+    }
+
+    // ========== CONTROLS ==========
+    loadBtn.addEventListener('click', () => {
+        let url = urlInput.value.trim();
+        let videoId = extractVideoId(url);
+        if(!videoId){
+            showToast("Invalid YouTube URL", true);
+            return;
+        }
+        currentVideoId = videoId;
+        loadYouTubeVideo(videoId);
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+        if(!player) return;
+        if(player.getPlayerState() === YT.PlayerState.PLAYING) {
+            player.pauseVideo();
+            playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        } else {
+            player.playVideo();
+            playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        }
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+        if(player) player.setVolume(parseInt(e.target.value));
+    });
+
+    speedBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            speedBtns.forEach(b => b.classList.remove('bg-slate-200'));
+            btn.classList.add('bg-slate-200');
+            currentSpeed = parseFloat(btn.dataset.speed);
+            if(player) player.setPlaybackRate(currentSpeed);
+        });
+    });
+
+    applyClipBtn.addEventListener('click', () => {
+        let start = parseFloat(clipStartInput.value);
+        let end = parseFloat(clipEndInput.value);
+        if(isNaN(start)) start = 0;
+        if(isNaN(end) || end > videoDuration) end = videoDuration;
+        if(start >= end) { showToast("Start must be less than end", true); return; }
+        clipStartSec = start;
+        clipEndSec = end;
+        showToast(`✓ Clip set: ${formatTime(start)} → ${formatTime(end)}`);
+    });
+
+    resetClipBtn.addEventListener('click', () => {
+        clipStartSec = 0;
+        clipEndSec = videoDuration;
+        clipStartInput.value = 0;
+        clipEndInput.value = videoDuration;
+        showToast("✓ Clip reset");
+    });
+
+    // ========== CAPTIONS ==========
+    captionFontSize.addEventListener('change', updateCaptionPreview);
+    captionFontWeight.addEventListener('change', updateCaptionPreview);
+    captionTextColor.addEventListener('change', updateCaptionPreview);
+    captionBgColor.addEventListener('change', updateCaptionPreview);
+
+    function updateCaptionPreview() {
+        captionPreview.style.fontSize = captionFontSize.value + 'px';
+        captionPreview.style.fontWeight = captionFontWeight.value;
+        captionPreview.style.color = captionTextColor.value;
+        captionPreview.style.backgroundColor = captionBgColor.value;
+    }
+
+    function renderCaptions() {
+        if(captionsList.length === 0){
+            captionContainer.innerHTML = '<div class="text-center text-slate-400 text-sm py-6">No captions yet.</div>';
+            return;
+        }
+        let html = `<div class="space-y-2">`;
+        captionsList.forEach((cap, idx) => {
+            html += `<div class="caption-item flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                        <div class="flex-1 text-xs"><span class="font-mono text-slate-500">${cap.start.toFixed(1)}s → ${cap.end.toFixed(1)}s</span><br><span class="font-medium">${cap.text.substring(0, 40)}</span></div>
+                        <button class="removeCaption text-red-400 hover:text-red-700 ml-2" data-idx="${idx}"><i class="fas fa-trash-alt"></i></button>
+                    </div>`;
+        });
+        html += `</div>`;
+        captionContainer.innerHTML = html;
+        document.querySelectorAll('.removeCaption').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                let idx = parseInt(btn.dataset.idx);
+                captionsList.splice(idx, 1);
+                renderCaptions();
+            });
+        });
+    }
+
+    autoCaptionBtn.addEventListener('click', () => {
+        if(!currentVideoId){
+            showToast("Load a video first", true);
+            return;
+        }
+        let duration = clipEndSec - clipStartSec;
+        if(duration <= 0) duration = 30;
+        let segments = Math.max(2, Math.min(8, Math.floor(duration / 4)));
+        let step = duration / segments;
+        captionsList = [];
+        const sampleTexts = [
+            "This is the intro section with amazing content",
+            "Key point: Quality matters most for engagement",
+            "Here's a powerful insight you should know",
+            "Make sure to check this important information",
+            "The final takeaway is truly significant"
+        ];
+        for(let i=0; i<segments; i++){
+            let startT = clipStartSec + (i * step);
+            let endT = clipStartSec + ((i+1) * step);
+            captionsList.push({
+                start: startT,
+                end: endT,
+                text: sampleTexts[i % sampleTexts.length]
+            });
+        }
+        renderCaptions();
+        showToast(`✓ Generated ${segments} captions`);
+    });
+
+    // ========== EFFECTS ==========
+    brightnessSlider.addEventListener('input', (e) => {
+        document.getElementById('brightnessVal').innerText = e.target.value + '%';
+        applyVideoEffects();
+    });
+
+    contrastSlider.addEventListener('input', (e) => {
+        document.getElementById('contrastVal').innerText = e.target.value + '%';
+        applyVideoEffects();
+    });
+
+    saturationSlider.addEventListener('input', (e) => {
+        document.getElementById('saturationVal').innerText = e.target.value + '%';
+        applyVideoEffects();
+    });
+
+    function applyVideoEffects() {
+        const brightness = brightnessSlider.value;
+        const contrast = contrastSlider.value;
+        const saturation = saturationSlider.value;
+        const filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+        document.getElementById('youtubePlayer').style.filter = filter;
+    }
+
+    // ========== BACKGROUND MUSIC ==========
+    bgmVolume.addEventListener('input', (e) => {
+        bgmVolText.innerText = e.target.value + '%';
+    });
+
+    // ========== EXPORT ==========
+    exportFullBtn.addEventListener('click', () => {
+        const format = exportFormat.value;
+        const config = {
+            videoId: currentVideoId,
+            clipStart: clipStartSec,
+            clipEnd: clipEndSec,
+            captions: captionsList,
+            effects: {
+                brightness: brightnessSlider.value,
+                contrast: contrastSlider.value,
+                saturation: saturationSlider.value
+            },
+            voiceover: ttsTextArea.value,
+            bgm: bgmSelect.value,
+            timestamp: new Date().toISOString()
+        };
+
+        if(format === 'json') {
+            const dataStr = JSON.stringify(config, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clip-${currentVideoId}-${Date.now()}.json`;
+            a.click();
+            showToast('✓ Project exported as JSON');
+        } else if(format === 'vtt') {
+            let vtt = 'WEBVTT\n\n';
+            captionsList.forEach(cap => {
+                vtt += `${formatTime(cap.start)} --> ${formatTime(cap.end)}\n${cap.text}\n\n`;
+            });
+            const dataBlob = new Blob([vtt], { type: 'text/vtt' });
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `captions-${currentVideoId}.vtt`;
+            a.click();
+            showToast('✓ Captions exported as WebVTT');
+        } else {
+            showToast('✓ Export feature coming soon for ' + format, false);
+        }
+    });
+
+    saveProjectBtn.addEventListener('click', () => {
+        projectData = {
+            videoId: currentVideoId,
+            clipStart: clipStartSec,
+            clipEnd: clipEndSec,
+            captions: captionsList,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('yt-clip-project', JSON.stringify(projectData));
+        showToast('✓ Project saved to browser storage');
+    });
+
+    // ========== INIT ==========
+    initTimelineScrubber();
+    updateCaptionPreview();
+    showToast('✓ YouTube Clip Studio PRO ready!', false);
+</script>
+</body>
+</html>
