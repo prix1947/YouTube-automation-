@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>YouTube Clip Studio | AI Captions + Voiceover + Edits</title>
+    <!-- Google Fonts & Tailwind CSS + Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .transition-smooth { transition: all 0.2s ease; }
+        .timeline-slider { accent-color: #ef4444; }
+        .caption-item:hover { background: #fef2f2; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-red-500 to-red-700 bg-clip-text text-transparent flex items-center gap-2">
+                <i class="fab fa-youtube text-red-600"></i> YouTube Clip Studio
+            </h1>
+            <p class="text-slate-500 text-sm">Paste any YouTube link → clip, captions, voiceover & automation</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="exportProjectBtn" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow"><i class="fas fa-download"></i> Export Project (.zip)</button>
+            <button id="howToBtn" class="bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><i class="fas fa-info-circle"></i> Guide</button>
+        </div>
+    </div>
+
+    <!-- Step 1: YouTube URL Input -->
+    <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-5 mb-6">
+        <label class="block text-sm font-semibold text-slate-800 mb-2"><i class="fab fa-youtube text-red-500 mr-1"></i> YouTube Video URL</label>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <input type="text" id="youtubeUrlInput" class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+            <button id="loadVideoBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-medium shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-play-circle"></i> Load & Analyze</button>
+        </div>
+        <div id="videoInfoBox" class="mt-3 text-sm text-slate-600 hidden bg-slate-50 p-3 rounded-xl"></div>
+    </div>
+
+    <!-- Main Editor Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- LEFT: VIDEO PLAYER & CLIPPING -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Player Container -->
+            <div class="bg-black rounded-2xl overflow-hidden shadow-xl aspect-video relative" id="playerWrapper">
+                <div id="youtubePlayer" class="w-full h-full"></div>
+                <div id="clipOverlay" class="absolute bottom-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded-lg hidden backdrop-blur-sm"></div>
+            </div>
+            
+            <!-- Clipping Controls -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800"><i class="fas fa-cut text-amber-600"></i> Clip Segment (Trim)</h3>
+                <div class="mt-3 space-y-4">
+                    <div class="flex flex-wrap gap-4">
+                        <div class="flex-1">
+                            <label class="text-xs font-medium text-slate-600">Start (seconds)</label>
+                            <input type="number" id="clipStart" step="0.5" class="w-full border rounded-lg px-3 py-2 text-sm" value="0">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-xs font-medium text-slate-600">End (seconds)</label>
+                            <input type="number" id="clipEnd" step="0.5" class="w-full border rounded-lg px-3 py-2 text-sm" value="30">
+                        </div>
+                        <div class="flex items-end">
+                            <button id="applyClipBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-4 py-2 rounded-xl text-sm font-medium"><i class="fas fa-scissors"></i> Apply to Player</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-400 flex justify-between">
+                        <span>🎬 Drag sliders or set precise timestamps. Clip will loop inside selected range.</span>
+                        <button id="resetClipBtn" class="text-red-500 hover:underline">Reset whole video</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAPTIONS EDITOR (AUTOMATION) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                    <h3 class="font-bold flex items-center gap-2 text-slate-800"><i class="fas fa-closed-captioning text-blue-600"></i> Smart Captions + Subtitles</h3>
+                    <div class="flex gap-2">
+                        <button id="autoGenerateCaptionsBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium shadow"><i class="fas fa-magic"></i> ✨ Auto-Generate (AI Mock)</button>
+                        <button id="addCaptionBtn" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium"><i class="fas fa-plus"></i> Manual Caption</button>
+                    </div>
+                </div>
+                <div class="max-h-64 overflow-y-auto border rounded-xl p-2 bg-slate-50" id="captionListContainer">
+                    <div class="text-center text-slate-400 text-sm py-6">No captions yet. Click "Auto-Generate" to create AI captions based on clip duration.</div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2"><i class="fas fa-info-circle"></i> Captions will be exported as WebVTT (.vtt) and can be burned into final video using external editor. Voiceover uses TTS.</p>
+            </div>
+        </div>
+
+        <!-- RIGHT: VOICEOVER & EXPORTS -->
+        <div class="space-y-6">
+            <!-- Voiceover Studio -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <h3 class="font-bold flex items-center gap-2 text-slate-800"><i class="fas fa-microphone-alt text-purple-600"></i> Voiceover Studio</h3>
+                <div class="mt-3 space-y-3">
+                    <div>
+                        <label class="text-xs font-medium text-slate-600">Voiceover Type</label>
+                        <select id="voiceType" class="w-full border rounded-lg px-3 py-2 text-sm">
+                            <option value="tts">🎙️ Text-to-Speech (AI Voice)</option>
+                            <option value="record">🎤 Record Microphone</option>
+                            <option value="upload">📁 Upload Audio File</option>
+                        </select>
+                    </div>
+                    <div id="ttsPanel">
+                        <label class="text-xs font-medium text-slate-600">Text for Voiceover</label>
+                        <textarea id="ttsText" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Enter script or use caption text...">This clip was enhanced with YouTube Clip Studio AI. Add your own message!</textarea>
+                        <div class="flex gap-2 mt-2">
+                            <select id="ttsVoice" class="border rounded-lg px-2 py-1 text-xs flex-1"></select>
+                            <button id="previewTTSBtn" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs"><i class="fas fa-headphones"></i> Preview</button>
+                        </div>
+                    </div>
+                    <div id="recordPanel" class="hidden">
+                        <button id="startRecordBtn" class="bg-red-500 hover:bg-red-600 text-white w-full py-2 rounded-lg text-sm"><i class="fas fa-circle"></i> Start Recording</button>
+                        <button id="stopRecordBtn" class="bg-gray-500 hidden w-full mt-2 py-2 rounded-lg text-sm">Stop & Save</button>
+                        <audio id="recordedAudio" controls class="w-full mt-2 hidden"></audio>
+                    </div>
+                    <div id="uploadPanel" class="hidden">
+                        <input type="file" id="voiceUploadInput" accept="audio/*" class="w-full border rounded-lg p-1 text-sm">
+                    </div>
+                    <button id="generateVoiceoverClip" class="bg-purple-600 hover:bg-purple-700 text-white w-full py-2 rounded-xl text-sm font-medium mt-2"><i class="fas fa-waveform"></i> Apply Voiceover to Project</button>
+                </div>
+            </div>
+
+            <!-- Final Automation & Export -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-lg">
+                <h3 class="font-bold flex items-center gap-2"><i class="fas fa-rocket"></i> One-Click Automation</h3>
+                <p class="text-xs text-slate-300 mt-1">Combine clipping + captions + voiceover → export ready-to-edit package</p>
+                <div class="mt-4 space-y-3">
+                    <button id="exportFullPackage" class="bg-white text-slate-900 hover:bg-slate-100 w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"><i class="fas fa-file-archive"></i> Export All Assets (ZIP)</button>
+                    <button id="copyClipConfig" class="bg-slate-700 hover:bg-slate-600 w-full py-2 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-clipboard-list"></i> Copy Clip Metadata</button>
+                </div>
+                <div class="mt-4 border-t border-slate-700 pt-3 text-xs text-slate-300">
+                    <p><i class="fas fa-lightbulb"></i> <strong>How to use:</strong> 1️⃣ Load YouTube video 2️⃣ Set clip range 3️⃣ Generate AI captions 4️⃣ Add voiceover (TTS or mic) 5️⃣ Export ZIP containing VTT captions + voiceover audio + clip info.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+    // ---------- GLOBALS ----------
+    let player = null;
+    let currentVideoId = null;
+    let clipStartSec = 0;
+    let clipEndSec = 30;
+    let videoDuration = 100;
+    let captionsList = [];      // { start, end, text }
+    let voiceoverBlob = null;   // audio blob for voiceover
+    let voiceoverUrl = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingActive = false;
+
+    // DOM elements
+    const urlInput = document.getElementById('youtubeUrlInput');
+    const loadBtn = document.getElementById('loadVideoBtn');
+    const videoInfoBox = document.getElementById('videoInfoBox');
+    const clipStartInput = document.getElementById('clipStart');
+    const clipEndInput = document.getElementById('clipEnd');
+    const applyClipBtn = document.getElementById('applyClipBtn');
+    const resetClipBtn = document.getElementById('resetClipBtn');
+    const autoCaptionBtn = document.getElementById('autoGenerateCaptionsBtn');
+    const addCaptionBtn = document.getElementById('addCaptionBtn');
+    const captionContainer = document.getElementById('captionListContainer');
+    const voiceTypeSelect = document.getElementById('voiceType');
+    const ttsPanel = document.getElementById('ttsPanel');
+    const recordPanel = document.getElementById('recordPanel');
+    const uploadPanel = document.getElementById('uploadPanel');
+    const ttsTextArea = document.getElementById('ttsText');
+    const ttsVoiceSelect = document.getElementById('ttsVoice');
+    const previewTTS = document.getElementById('previewTTSBtn');
+    const startRecordBtn = document.getElementById('startRecordBtn');
+    const stopRecordBtn = document.getElementById('stopRecordBtn');
+    const recordedAudio = document.getElementById('recordedAudio');
+    const voiceUploadInput = document.getElementById('voiceUploadInput');
+    const generateVoiceBtn = document.getElementById('generateVoiceoverClip');
+    const exportFullBtn = document.getElementById('exportFullPackage');
+    const copyConfigBtn = document.getElementById('copyClipConfig');
+    const exportProjectBtn = document.getElementById('exportProjectBtn');
+    const howToBtn = document.getElementById('howToBtn');
+
+    // Helper: show toast
+    function showToast(msg, isErr = false) {
+        let toast = document.getElementById('dynamicToast');
+        if(!toast){
+            toast = document.createElement('div');
+            toast.id = 'dynamicToast';
+            toast.className = 'fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-2.5 rounded-xl shadow-lg text-sm z-50 transition-all duration-300';
+            document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.background = isErr ? '#dc2626' : '#1e293b';
+        toast.classList.remove('opacity-0', 'invisible');
+        toast.classList.add('opacity-100');
+        setTimeout(() => { toast.classList.add('opacity-0'); setTimeout(() => toast.classList.add('invisible'), 300); }, 3000);
+    }
+
+    // Load YouTube video
+    function loadYouTubeVideo(videoId) {
+        if (player) {
+            player.loadVideoById(videoId);
+        } else {
+            new YT.Player('youtubePlayer', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: { controls: 1, modestbranding: 1, rel: 0 },
+                events: {
+                    onReady: (event) => {
+                        player = event.target;
+                        videoDuration = player.getDuration();
+                        clipEndInput.value = Math.min(30, videoDuration);
+                        clipEndSec = parseFloat(clipEndInput.value);
+                        clipStartSec = 0;
+                        player.seekTo(clipStartSec);
+                        player.playVideo();
+                        showToast(`Video loaded: ${videoId}`);
+                        updateInfoDisplay();
+                    },
+                    onStateChange: (e) => {
+                        if(e.data === YT.PlayerState.PLAYING && (clipStartSec || clipEndSec)){
+                            enforceClipLoop();
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function enforceClipLoop() {
+        if(!player) return;
+        const current = player.getCurrentTime();
+        if(current < clipStartSec) player.seekTo(clipStartSec);
+        if(current > clipEndSec) player.seekTo(clipStartSec);
+    }
+
+    function updateInfoDisplay() {
+        if(currentVideoId){
+            videoInfoBox.innerHTML = `<i class="fab fa-youtube text-red-500 mr-1"></i> <span class="font-medium">${currentVideoId}</span> — Duration: ${Math.floor(videoDuration)}s | Clip: ${clipStartSec.toFixed(1)} → ${clipEndSec.toFixed(1)}s`;
+            videoInfoBox.classList.remove('hidden');
+        }
+    }
+
+    loadBtn.addEventListener('click', () => {
+        let url = urlInput.value.trim();
+        let videoId = extractVideoId(url);
+        if(!videoId){
+            showToast("Invalid YouTube URL", true);
+            return;
+        }
+        currentVideoId = videoId;
+        loadYouTubeVideo(videoId);
+        clipStartInput.value = 0;
+        clipEndInput.value = Math.min(30, 100);
+        clipStartSec = 0;
+        clipEndSec = Math.min(30, 100);
+    });
+
+    function extractVideoId(url) {
+        const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[7].length === 11) ? match[7] : null;
+    }
+
+    applyClipBtn.addEventListener('click', () => {
+        let start = parseFloat(clipStartInput.value);
+        let end = parseFloat(clipEndInput.value);
+        if(isNaN(start)) start = 0;
+        if(isNaN(end) || end > videoDuration) end = videoDuration;
+        if(start >= end) { showToast("Start must be less than end", true); return; }
+        clipStartSec = start;
+        clipEndSec = end;
+        if(player){
+            player.seekTo(clipStartSec);
+            player.playVideo();
+        }
+        updateInfoDisplay();
+        showToast(`Clip set: ${clipStartSec.toFixed(1)}s → ${clipEndSec.toFixed(1)}s`);
+    });
+
+    resetClipBtn.addEventListener('click', () => {
+        clipStartSec = 0;
+        clipEndSec = videoDuration;
+        clipStartInput.value = 0;
+        clipEndInput.value = videoDuration;
+        if(player) player.seekTo(0);
+        updateInfoDisplay();
+        showToast("Clip reset to full video");
+    });
+
+    // ---- CAPTIONS automation (AI mock generating captions based on clip) ----
+    function renderCaptions() {
+        if(captionsList.length === 0){
+            captionContainer.innerHTML = '<div class="text-center text-slate-400 text-sm py-6">No captions yet. Click "Auto-Generate" to create AI captions based on clip duration.</div>';
+            return;
+        }
+        let html = `<div class="space-y-2">`;
+        captionsList.forEach((cap, idx) => {
+            html += `<div class="caption-item flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                        <div class="flex-1 text-xs"><span class="font-mono text-slate-500">${cap.start.toFixed(1)}s → ${cap.end.toFixed(1)}s</span><br><span class="font-medium">${escapeHtml(cap.text)}</span></div>
+                        <button class="removeCaption text-red-400 hover:text-red-700 ml-2" data-idx="${idx}"><i class="fas fa-trash-alt"></i></button>
+                    </div>`;
+        });
+        html += `<div class="text-right"><button id="clearAllCaptionsBtn" class="text-xs text-red-500 mt-1">Clear all</button></div></div>`;
+        captionContainer.innerHTML = html;
+        document.querySelectorAll('.removeCaption').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                let idx = parseInt(btn.dataset.idx);
+                captionsList.splice(idx,1);
+                renderCaptions();
+            });
+        });
+        const clearBtn = document.getElementById('clearAllCaptionsBtn');
+        if(clearBtn) clearBtn.onclick = () => { captionsList = []; renderCaptions(); };
+    }
+
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    // AI Mock: generate dynamic captions based on clip length + fake text
+    autoGenerateCaptionBtn.addEventListener('click', () => {
+        if(!player && !currentVideoId){
+            showToast("Load a YouTube video first", true);
+            return;
+        }
+        let duration = clipEndSec - clipStartSec;
+        if(duration <= 0) duration = 30;
+        let segments = Math.max(2, Math.min(8, Math.floor(duration / 4)));
+        let step = duration / segments;
+        let newCaptions = [];
+        for(let i=0; i<segments; i++){
+            let startT = clipStartSec + (i * step);
+            let endT = clipStartSec + ((i+1) * step);
+     
